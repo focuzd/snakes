@@ -37,10 +37,24 @@ struct Snake* init_snake(int row, int col) {
     return s;
 }
 
-void move_head(struct Snake *s, bool has_eaten, int row, int col)
+WINDOW *init_playground(int row, int col)
+{
+    int height = 20;
+    int width = 50;
+    int startx = (col - width)/2;
+    int starty = (row - height)/2;
+
+    WINDOW *local_win = newwin(height, width, starty, startx);
+    box(local_win, 0, 0);
+
+    wrefresh(local_win);
+    return local_win;
+}
+
+void move_head(WINDOW *win, struct Snake *s, bool has_eaten, int row, int col)
 {
     if (!has_eaten) 
-        mvaddch(s->body[s->length-1].y, s->body[s->length-1].x, ' ');
+        mvwaddch(win, s->body[s->length-1].y, s->body[s->length-1].x, ' ');
     
     struct Body *head = &(s->body[0]);
 
@@ -50,27 +64,27 @@ void move_head(struct Snake *s, bool has_eaten, int row, int col)
     }
 
     if (s->dir == UP) {
-        if (head->y == 0) head->y = row;
+        if (head->y == 1) head->y = row - 2;
         else head->y -= 1;
     } else if (s->dir == RIGHT) {
-        if (head->x == col-1) head->x = 0;
+        if (head->x == col - 2) head->x = 1;
         else head->x += 1;
     } else if (s->dir == DOWN) {
-        if (head->y == row-1) head->y = 0;
+        if (head->y == row - 2) head->y = 1;
         else head->y += 1;
     } else if (s->dir == LEFT) {
-        if (head->x == 0) head->x = col;
+        if (head->x == 1) head->x = col - 2;
         else head->x -= 1;
     }
 
-    mvaddch(head->y, head->x, s->chead);
+    mvwaddch(win, head->y, head->x, s->chead);
     for (int i = 1; i < s->length; i++) {
-        mvaddch(s->body[i].y, s->body[i].x, s->cbody);
+        mvwaddch(win, s->body[i].y, s->body[i].x, s->cbody);
     }
 }
 
-bool is_occupied(struct Snake *s, int y, int x) {
-    for (int i = 0; i < s->length; i++) {
+bool is_occupied(struct Snake *s, int y, int x, int start) {
+    for (int i = start; i < s->length; i++) {
         if(s->body[i].x == x && s->body[i].y == y) 
             return true;
     }
@@ -78,16 +92,16 @@ bool is_occupied(struct Snake *s, int y, int x) {
     return false;
 }
 
-void spawn_food(int *y, int *x, int row, int col, struct Snake *s) {
-    mvaddch(*y, *x, ' ');
+void spawn_food(WINDOW *win, int *y, int *x, struct Snake *s, int row, int col) {
+    mvwaddch(win, *y, *x, ' ');
     char food_char = '*';
 
     do {
-    *x = rand() % col;
-    *y = rand() % row;
-    } while (is_occupied(s, *y, *x));
+    *x = 1 + rand() % (col - 2);
+    *y = 1 + rand() % (row - 2);
+    } while (is_occupied(s, *y, *x, 0));
     
-    mvaddch(*y, *x, food_char);
+    mvwaddch(win, *y, *x, food_char);
 }
 
 void update_dir(struct Snake *s, char input) {
@@ -104,54 +118,65 @@ void update_dir(struct Snake *s, char input) {
     }
 }
 
-void spawn_body(struct Snake *s){ 
+void spawn_body(WINDOW *win, struct Snake *s){ 
     // handle the case where the length is greater than or equal to the current size of body array
     
     s->body[s->length].x = s->body[s->length-1].x;
     s->body[s->length].y = s->body[s->length-1].y;
-    mvaddch(s->body[s->length].y, s->body[s->length].x, s->cbody);
+    mvwaddch(win, s->body[s->length].y, s->body[s->length].x, s->cbody);
     s->length += 1;
 }
 
 int main()
 {
     char input;
-    int row, col, food_x, food_y;
+    int row, col, food_x, food_y, score, pg_row, pg_col;
     bool has_eaten;
-    srand(time(NULL));
+    struct Snake *s;
+    WINDOW *playground;
 
+    srand(time(NULL));
     initscr();
     noecho();
-    raw();
+    cbreak();
     
     getmaxyx(stdscr, row, col);
-    struct Snake *s = init_snake(row, col);
+    playground = init_playground(row, col);
+    getmaxyx(playground, pg_row, pg_col);
+    
+    score = 0;
+    food_x = food_y = 1;
+    s = init_snake(pg_row, pg_col);
+    mvwaddch(playground, pg_row/2, pg_col/2, s->chead);
+    spawn_food(playground, &food_y, &food_x, s, pg_row, pg_col);
+    nodelay(playground, true);
+    keypad(playground, true);
 
-    food_x = food_y = 0;
-    mvaddch(row/2, col/2, s->chead);
-    mvaddch(food_x, food_y, '*');
-    nodelay(stdscr, true);
-
-    while ((input = getch()) != 'q') {
+    while ((input = wgetch(playground)) != 'q') {
         update_dir(s, input);
         has_eaten = false;
-        mvprintw(row - 1, 0, "x:%d, y:%d", s->body[0].x, s->body[0].y);
+
+        if (is_occupied(s, s->body[0].y, s->body[0].x, 1)) 
+            break;
 
         if (food_x == s->body[0].x && food_y == s->body[0].y) {
-            spawn_food(&food_y, &food_x, row, col, s);
-            spawn_body(s);
+            spawn_food(playground, &food_y, &food_x, s, pg_row, pg_col);
+            spawn_body(playground, s);
             has_eaten = true;
+            score++;
         }
-        move_head(s, has_eaten, row, col); 
+        move_head(playground, s, has_eaten, pg_row, pg_col); 
         // updating head position after spawing the last body part saves us a lot of calcuation to predict 
         // position of the last body part
 
+        mvprintw(row - 1, 0, "x:%d, y:%d", s->body[0].x, s->body[0].y);
+        mvprintw(row-2, 0, "Score: %d", score);
         usleep(DUR);
+        wrefresh(playground);
         refresh();
     }
    
     getch();
     endwin();
     return 0;
-};
-
+}
