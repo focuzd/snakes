@@ -39,13 +39,28 @@ struct Snake* init_snake(int row, int col) {
     return s;
 }
 
-WINDOW *init_playground(int row, int col)
-{
-    int height = 20;
-    int width = 50;
-    int startx = (col - width)/2;
-    int starty = (row - height)/2;
+void print_screen(char *filename) {
+    FILE *fp; 
+    int ch;
 
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        perror("failed to open file\n");
+        exit(1);
+    }
+
+    while ((ch = fgetc(fp)) != EOF) 
+        addch(ch);
+
+    refresh();
+    getch();
+    clear();
+    fclose(fp);
+    refresh();
+}
+
+WINDOW *create_window(int height, int width, int starty, int startx)
+{
     WINDOW *local_win = newwin(height, width, starty, startx);
     box(local_win, 0, 0);
 
@@ -133,29 +148,41 @@ void spawn_body(WINDOW *win, struct Snake *s){
     }    
 }
 
+void delete_window(WINDOW *win) {
+    wclear(win);
+    wrefresh(win);
+    delwin(win);
+}
+
 int main()
 {
-    int input, row, col, food_x, food_y, score, pg_row, pg_col;
+    int input, row, col, food_x, food_y, score;
+    int sw_row, sw_col, pg_row, pg_col;
     bool has_eaten;
     struct Snake *s;
-    WINDOW *playground;
+    WINDOW *playground, *score_win;
 
     srand(time(NULL));
     initscr();
     noecho();
     cbreak();
-    
+
+    print_screen("start_screen.txt");
     getmaxyx(stdscr, row, col);
-    playground = init_playground(row, col);
+    playground = create_window(20, 50, (row - 20) / 2, (col - 50) / 2);
+    score_win = create_window(3, 20, 1, (col - 20) / 2);
     getmaxyx(playground, pg_row, pg_col);
+    getmaxyx(score_win, sw_row, sw_col);
     
     score = 0;
     food_x = food_y = 1;
     s = init_snake(pg_row, pg_col);
-    mvwaddch(playground, pg_row/2, pg_col/2, s->chead);
+    mvwaddch(playground, pg_row / 2, pg_col / 2, s->chead);
+    mvwprintw(score_win, sw_row / 2, (sw_col - 8) / 2, "Score: %d", score);
     spawn_food(playground, &food_y, &food_x, s, pg_row, pg_col);
     nodelay(playground, true);
     keypad(playground, true);
+    wrefresh(score_win);
 
     while ((input = wgetch(playground)) != 'q') {
         update_dir(s, input);
@@ -169,18 +196,23 @@ int main()
             spawn_body(playground, s);
             has_eaten = true;
             score++;
+            mvwprintw(score_win, sw_row / 2, (sw_col - 8) / 2, "Score: %d", score);  
+            wrefresh(score_win);
         }
         move_head(playground, s, has_eaten, pg_row, pg_col); 
         // updating head position after spawing the last body part saves us a lot of calcuation to predict 
         // position of the last body part
 
-        mvprintw(row - 1, 0, "x:%d, y:%d", s->body[0].x, s->body[0].y);
-        mvprintw(row-2, 0, "Score: %d", score);
         usleep(DUR);
         wrefresh(playground);
     }
-   
-    getch();
+
+    delete_window(playground);
+    delete_window(score_win);
+
+    free(s->body);
+    free(s);
+    print_screen("game_over.txt");
     endwin();
     return 0;
 }
