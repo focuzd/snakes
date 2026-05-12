@@ -29,7 +29,7 @@ struct Snake* init_snake(int row, int col) {
     s->length = 1;
     s->chead = '#';
     s->cbody = '0';
-    s->body = (struct Body*)malloc(50*(sizeof(struct Body)));
+    s->body = (struct Body*)malloc(10*(sizeof(struct Body)));
     s->body[0].x = col/2;
     s->body[0].y = row/2;
     s->dir = UP;
@@ -120,10 +120,14 @@ void update_dir(struct Snake *s, int input) {
 
 void spawn_body(WINDOW *win, struct Snake *s){ 
     // handle the case where the length is greater than or equal to the current size of body array
-    
-    s->body[s->length].x = s->body[s->length-1].x;
-    s->body[s->length].y = s->body[s->length-1].y;
-    mvwaddch(win, s->body[s->length].y, s->body[s->length].x, s->cbody);
+    /*
+    if (s->length == (sizeof(s->body) / sizeof(s->body[0]))) {
+        s->body = (struct Body *)realloc(s->body, 2*s->length*sizeof(struct Body));
+        if (s->body == NULL) {
+            exit(1);
+        }
+    }    
+    */
     s->length += 1;
 }
 
