@@ -104,16 +104,16 @@ void spawn_food(WINDOW *win, int *y, int *x, struct Snake *s, int row, int col) 
     mvwaddch(win, *y, *x, food_char);
 }
 
-void update_dir(struct Snake *s, char input) {
+void update_dir(struct Snake *s, int input) {
     switch (s->dir) {
         case UP: case DOWN:
-            if (input == 'a') s->dir = LEFT;
-            if (input == 'd') s->dir = RIGHT;
+            if (input == 'a' || input == KEY_LEFT) s->dir = LEFT;
+            if (input == 'd' || input == KEY_RIGHT) s->dir = RIGHT;
             break;
         
         case RIGHT: case LEFT:
-            if (input == 'w') s->dir = UP;
-            if (input == 's') s->dir = DOWN;
+            if (input == 'w' || input == KEY_UP) s->dir = UP;
+            if (input == 's' || input == KEY_DOWN) s->dir = DOWN;
             break;
     }
 }
@@ -129,8 +129,7 @@ void spawn_body(WINDOW *win, struct Snake *s){
 
 int main()
 {
-    char input;
-    int row, col, food_x, food_y, score, pg_row, pg_col;
+    int input, row, col, food_x, food_y, score, pg_row, pg_col;
     bool has_eaten;
     struct Snake *s;
     WINDOW *playground;
@@ -173,7 +172,6 @@ int main()
         mvprintw(row-2, 0, "Score: %d", score);
         usleep(DUR);
         wrefresh(playground);
-        refresh();
     }
    
     getch();
