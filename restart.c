@@ -18,8 +18,9 @@ struct Body {
 
 struct Snake{
     int length;
-    char chead;
-    char cbody;
+    int capacity;
+    chtype chead;
+    chtype cbody;
     int dir;
     struct Body *body;
 };
@@ -27,9 +28,10 @@ struct Snake{
 struct Snake* init_snake(int row, int col) {
     struct Snake *s = (struct Snake*)malloc(sizeof(struct Snake));
     s->length = 1;
-    s->chead = '#';
-    s->cbody = '0';
-    s->body = (struct Body*)malloc(10*(sizeof(struct Body)));
+    s->capacity = 10;
+    s->chead = ACS_DIAMOND;
+    s->cbody = ACS_BULLET;
+    s->body = (struct Body*)malloc(s->capacity * (sizeof(struct Body)));
     s->body[0].x = col/2;
     s->body[0].y = row/2;
     s->dir = UP;
@@ -53,7 +55,7 @@ WINDOW *init_playground(int row, int col)
 
 void move_head(WINDOW *win, struct Snake *s, bool has_eaten, int row, int col)
 {
-    if (!has_eaten) 
+    if (!has_eaten)
         mvwaddch(win, s->body[s->length-1].y, s->body[s->length-1].x, ' ');
     
     struct Body *head = &(s->body[0]);
@@ -120,15 +122,15 @@ void update_dir(struct Snake *s, int input) {
 
 void spawn_body(WINDOW *win, struct Snake *s){ 
     // handle the case where the length is greater than or equal to the current size of body array
-    /*
-    if (s->length == (sizeof(s->body) / sizeof(s->body[0]))) {
+    s->length += 1;
+
+    if (s->length == s->capacity) {
+        s->capacity = s->length * 2;
         s->body = (struct Body *)realloc(s->body, 2*s->length*sizeof(struct Body));
         if (s->body == NULL) {
             exit(1);
         }
     }    
-    */
-    s->length += 1;
 }
 
 int main()
